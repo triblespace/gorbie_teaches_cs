@@ -1,0 +1,13 @@
+[package]
+name = "gorbie_teaches_cs"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Teaching notebooks built with GORBIE."
+authors = ["Jan-Paul Bultmann <jp@bultmann.eu>"]
+
+[dependencies]
+GORBIE = "0.4.0"
+egui = "0.33"
+
+[workspace]
