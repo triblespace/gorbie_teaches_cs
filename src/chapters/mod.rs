@@ -8,6 +8,7 @@ use GORBIE::prelude::*;
 mod booleans;
 mod expressions;
 mod if_else;
+mod loops;
 mod overview;
 mod state;
 
@@ -18,6 +19,7 @@ pub enum Chapter {
     Booleans,
     State,
     IfElse,
+    Loops,
 }
 
 static CURRENT_CHAPTER: OnceLock<RwLock<Chapter>> = OnceLock::new();
@@ -44,11 +46,12 @@ pub fn chapter_selector(nb: &mut NotebookCtx) {
 
             let mut selection = current_chapter();
             let mut toggle = widgets::ChoiceToggle::new(&mut selection).small();
-            toggle = toggle.choice(Chapter::Overview, "Overview");
-            toggle = toggle.choice(Chapter::Expressions, "Hello, expressions");
-            toggle = toggle.choice(Chapter::Booleans, "To Bool or Not to Bool");
-            toggle = toggle.choice(Chapter::State, "Hello, state");
-            toggle = toggle.choice(Chapter::IfElse, "Forks in the Road");
+            toggle = toggle.choice(Chapter::Overview, "0");
+            toggle = toggle.choice(Chapter::Expressions, "1");
+            toggle = toggle.choice(Chapter::Booleans, "2");
+            toggle = toggle.choice(Chapter::State, "3");
+            toggle = toggle.choice(Chapter::IfElse, "4");
+            toggle = toggle.choice(Chapter::Loops, "5");
             ui.add(toggle);
 
             if selection != current_chapter() {
@@ -76,4 +79,8 @@ pub fn state(nb: &mut NotebookCtx) {
 
 pub fn if_else(nb: &mut NotebookCtx) {
     if_else::if_else(nb);
+}
+
+pub fn loops(nb: &mut NotebookCtx) {
+    loops::loops(nb);
 }

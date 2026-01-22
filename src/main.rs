@@ -13,5 +13,6 @@ fn main(nb: &mut NotebookCtx) {
         chapters::Chapter::Booleans => chapters::booleans(nb),
         chapters::Chapter::State => chapters::state(nb),
         chapters::Chapter::IfElse => chapters::if_else(nb),
+        chapters::Chapter::Loops => chapters::loops(nb),
     }
 }

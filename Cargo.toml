@@ -7,7 +7,7 @@ description = "Teaching notebooks built with GORBIE."
 authors = ["Jan-Paul Bultmann <jp@bultmann.eu>"]
 
 [dependencies]
-GORBIE = "0.4.0"
+GORBIE = { path = "../GORBIE" }
 egui = "0.33"
 
 [workspace]
