@@ -4,7 +4,9 @@ version = 4
 
 [[package]]
 name = "GORBIE"
-version = "0.4.0"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9f54905499abbd34de10cb7f06d49e62a6819b1e8381bd64c27534c9f30d25a"
 dependencies = [
  "ctrlc",
  "dark-light",
@@ -1627,6 +1629,8 @@ dependencies = [
 [[package]]
 name = "gorbie-macros"
 version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a64a28709898e312f6f6f57c461f503c7cd23a48999cbafab1723f70bebae5b9"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",

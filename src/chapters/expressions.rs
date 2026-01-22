@@ -1083,6 +1083,8 @@ pub fn expressions(nb: &mut NotebookCtx) {
                 ui.label(RichText::new("Step through an expression").heading());
                 ui.add_space(4.0);
                 ui.label("Use numbers, +, -, *, parentheses, and unary minus.");
+                ui.label("This tool shows the exact order the computer evaluates.");
+                ui.label("Step forward to see which part is solved next.");
                 ui.add_space(6.0);
 
                 ui.horizontal(|ui| {
@@ -1180,6 +1182,8 @@ pub fn expressions(nb: &mut NotebookCtx) {
             with_padding(ui, DEFAULT_CARD_PADDING, |ui| {
                 ui.label(RichText::new("Tree practice").heading());
                 ui.add_space(6.0);
+                ui.label("Train your evaluation order: deepest first, then left to right.");
+                ui.label("This builds the same skill you use when you read code.");
                 ui.label("Click a box to evaluate it in the right order (left to right).");
                 ui.label("Keep going until the whole tree becomes one number.");
                 ui.add_space(6.0);
@@ -1259,6 +1263,8 @@ pub fn expressions(nb: &mut NotebookCtx) {
             with_padding(ui, DEFAULT_CARD_PADDING, |ui| {
                 ui.label(RichText::new("Random practice").heading());
                 ui.add_space(6.0);
+                ui.label("Practice turning a whole expression into one value.");
+                ui.label("Try to do the steps in your head or on paper, then check.");
                 ui.label("Generate a new expression and evaluate it.");
                 ui.add_space(6.0);
                 if ui.add(widgets::Button::new("New exercise")).clicked() {
