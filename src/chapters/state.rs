@@ -221,6 +221,51 @@ pub fn state(nb: &mut NotebookCtx) {
         );
     });
 
+    nb.view(|ui| {
+        md!(
+            ui,
+            "## Some values stay fixed\n\
+             Not everything should change. Sometimes we want a **constant** value\n\
+             that stays the same while other values move around.\n\
+             Constants make programs easier to understand because the rule never shifts.\n\
+             We will use fixed values more in the Rust track."
+        );
+    });
+
+    nb.state(&chapter_key("immutability_demo"), 2_i32, |ui, count| {
+        with_padding(ui, DEFAULT_CARD_PADDING, |ui| {
+            ui.label(RichText::new("A fixed rule, a changing value").heading());
+            ui.add_space(6.0);
+
+            let limit = 5;
+            ui.label(format!("limit = {limit} (fixed)"));
+            ui.label(format!("count = {count} (changes)"));
+            ui.add_space(6.0);
+
+            ui.horizontal(|ui| {
+                if ui.add(widgets::Button::new("+1")).clicked() {
+                    *count = count.saturating_add(1);
+                }
+                if ui
+                    .add_enabled(*count > 0, widgets::Button::new("-1"))
+                    .clicked()
+                {
+                    *count = count.saturating_sub(1);
+                }
+                if ui.add(widgets::Button::new("reset")).clicked() {
+                    *count = 2;
+                }
+            });
+
+            ui.add_space(6.0);
+            if *count >= limit {
+                ui.label("The rule says: stop when count reaches the limit.");
+            } else {
+                ui.label("The rule stays the same even while count changes.");
+            }
+        });
+    });
+
     let apples = nb.state(&chapter_key("apples"), 3_i32, |ui, value| {
         with_padding(ui, DEFAULT_CARD_PADDING, |ui| {
             ui.label(RichText::new("Try changing the value.").heading());
