@@ -1,6 +1,7 @@
 use GORBIE::prelude::*;
 
 mod chapters;
+mod flowchart;
 
 #[notebook]
 fn main(nb: &mut NotebookCtx) {
@@ -14,5 +15,6 @@ fn main(nb: &mut NotebookCtx) {
         chapters::Chapter::State => chapters::state(nb),
         chapters::Chapter::IfElse => chapters::if_else(nb),
         chapters::Chapter::Loops => chapters::loops(nb),
+        chapters::Chapter::Functions => chapters::functions(nb),
     }
 }

@@ -1,10 +1,12 @@
 use egui::text::LayoutJob;
-use egui::Align2;
 use egui::RichText;
 use egui::TextStyle;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::chapters::Chapter;
+use crate::flowchart::{
+    paint_flowchart, Flowchart, FlowchartEdge, FlowchartNode, FlowchartNodeKind, FlowchartStyle,
+};
 use GORBIE::cards::{with_padding, DEFAULT_CARD_PADDING};
 use GORBIE::prelude::*;
 
@@ -365,25 +367,6 @@ fn text_width(ui: &egui::Ui, text: &str, font_id: &egui::FontId) -> f32 {
     })
 }
 
-fn paint_polyline(
-    painter: &egui::Painter,
-    points: &[egui::Pos2],
-    stroke: egui::Stroke,
-    corner_radius: f32,
-) {
-    if points.len() < 2 {
-        return;
-    }
-    for segment in points.windows(2) {
-        painter.line_segment([segment[0], segment[1]], stroke);
-    }
-    if corner_radius > 0.0 && points.len() > 2 {
-        for corner in &points[1..points.len() - 1] {
-            painter.circle_filled(*corner, corner_radius, stroke.color);
-        }
-    }
-}
-
 fn paint_if_else_flowchart<Ctx>(
     ui: &mut egui::Ui,
     decision: &Decision<Ctx>,
@@ -394,14 +377,6 @@ fn paint_if_else_flowchart<Ctx>(
         return;
     }
     let width = ui.available_width().max(240.0);
-    let background = ui.visuals().window_fill;
-    let outline = ui.visuals().widgets.noninteractive.bg_stroke.color;
-    let inactive = GORBIE::themes::blend(background, outline, 0.55);
-    let accent = GORBIE::themes::ral(2009);
-    let active_stroke = egui::Stroke::new(2.0, accent);
-    let inactive_stroke = egui::Stroke::new(2.0, inactive);
-    let neutral_stroke = egui::Stroke::new(2.0, outline);
-
     let font_id = TextStyle::Monospace.resolve(ui.style());
     let mut action_label_width = text_width(ui, else_action.label, &font_id);
     let mut condition_label_width: f32 = 0.0;
@@ -413,25 +388,31 @@ fn paint_if_else_flowchart<Ctx>(
     condition_label_width = condition_label_width.max(value_width);
 
     let action_box_w = (action_label_width + 24.0).clamp(96.0, width * 0.45);
-    let action_box_h = 28.0;
+    let edge_width: f32 = 2.5;
+    let start_r: f32 = edge_width * 2.5;
+    let action_box_h: f32 = 28.0;
     let condition_box_w = (condition_label_width + 28.0).clamp(120.0, width * 0.55);
-    let condition_box_h = 40.0;
-    let start_r = 7.0;
+    let condition_box_h: f32 = 40.0;
+    let action_gap: f32 = 6.0;
+    let action_drop: f32 = condition_box_h / 2.0 + action_box_h / 2.0 + action_gap;
     let row_gap = 28.0;
     let top_padding = 8.0;
     let gap_to_condition = 16.0;
     let bottom_padding = 8.0;
     let chosen = decision_selected_index(decision, ctx);
+    let action_extra = (action_drop + action_box_h / 2.0 - condition_box_h / 2.0).max(0.0);
 
     let height = (top_padding
         + start_r * 2.0
         + gap_to_condition
         + steps.len().saturating_sub(1) as f32 * (condition_box_h + row_gap)
         + condition_box_h
-        + bottom_padding)
+        + bottom_padding
+        + action_extra)
         .max(140.0);
     let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
-    let painter = ui.painter_at(rect);
+    let mut style = FlowchartStyle::from_ui(ui);
+    style.start_radius = start_r;
 
     let center_x = rect.center().x;
     let top = rect.top() + top_padding;
@@ -439,115 +420,100 @@ fn paint_if_else_flowchart<Ctx>(
     let first_condition_center_y =
         start_center.y + start_r + gap_to_condition + condition_box_h / 2.0;
     let max_dx = (rect.width() / 2.0 - action_box_w / 2.0 - 6.0).max(0.0);
-    let min_dx = condition_box_w / 2.0 + action_box_w / 2.0 + 8.0;
+    let min_dx = condition_box_w / 2.0 + action_box_w / 2.0 + 20.0;
     let branch_dx = if min_dx <= max_dx { min_dx } else { max_dx };
+    let branch_elbow = |from: egui::Pos2, to: egui::Pos2| -> Vec<egui::Pos2> {
+        if (from.y - to.y).abs() <= 0.5 || (from.x - to.x).abs() <= 0.5 {
+            return vec![from, to];
+        }
+        vec![from, egui::pos2(to.x, from.y), to]
+    };
 
-    let corner_radius = 3.0;
+    let mut nodes = Vec::new();
+    let mut edges = Vec::new();
     let mut last_condition_box = egui::Rect::NOTHING;
     let mut last_left_box = egui::Rect::NOTHING;
 
-    painter.add(egui::Shape::circle_filled(start_center, start_r, background));
-    painter.add(egui::Shape::circle_stroke(start_center, start_r, neutral_stroke));
+    let start_rect =
+        egui::Rect::from_center_size(start_center, egui::vec2(start_r * 2.0, start_r * 2.0));
+    nodes.push(FlowchartNode::new(
+        FlowchartNodeKind::Start,
+        start_rect,
+        "",
+    )
+    .active(true));
 
     for (idx, (condition, action)) in steps.iter().enumerate() {
         let condition_center_y =
             first_condition_center_y + idx as f32 * (condition_box_h + row_gap);
+        let action_center_y = condition_center_y + action_drop;
         let condition_box = egui::Rect::from_center_size(
             egui::pos2(center_x, condition_center_y),
             egui::vec2(condition_box_w, condition_box_h),
         );
-        let right_center = egui::pos2(center_x + branch_dx, condition_center_y);
+        let right_center = egui::pos2(center_x + branch_dx, action_center_y);
         let right_box =
             egui::Rect::from_center_size(right_center, egui::vec2(action_box_w, action_box_h));
 
         let condition_top = egui::pos2(condition_box.center().x, condition_box.top());
         let condition_bottom = egui::pos2(condition_box.center().x, condition_box.bottom());
         let condition_right = egui::pos2(condition_box.right(), condition_box.center().y);
-        let right_left = egui::pos2(right_box.left(), right_box.center().y);
+        let right_top = egui::pos2(right_box.center().x, right_box.top());
         if idx == 0 {
             let start_bottom = egui::pos2(center_x, start_center.y + start_r);
-            painter.line_segment([start_bottom, condition_top], neutral_stroke);
+            edges.push(FlowchartEdge {
+                points: vec![start_bottom, condition_top],
+                active: true,
+            });
         }
 
-        let yes_path = [condition_right, right_left];
-        let yes_stroke = if chosen == idx {
-            active_stroke
-        } else {
-            inactive_stroke
-        };
-        paint_polyline(&painter, &yes_path, yes_stroke, corner_radius);
+        edges.push(FlowchartEdge {
+            points: branch_elbow(condition_right, right_top),
+            active: chosen == idx,
+        });
 
         if idx + 1 < steps.len() {
             let next_center_y =
                 first_condition_center_y + (idx + 1) as f32 * (condition_box_h + row_gap);
             let next_top = egui::pos2(center_x, next_center_y - condition_box_h / 2.0);
-            let no_path = [condition_bottom, next_top];
-            let no_stroke = if chosen > idx {
-                active_stroke
-            } else {
-                inactive_stroke
-            };
-            paint_polyline(&painter, &no_path, no_stroke, 0.0);
+            edges.push(FlowchartEdge {
+                points: vec![condition_bottom, next_top],
+                active: chosen > idx,
+            });
         }
 
-        painter.rect_filled(condition_box, 6.0, background);
-        painter.rect_stroke(condition_box, 6.0, neutral_stroke, egui::StrokeKind::Inside);
-
-        let yes_fill = if chosen == idx {
-            GORBIE::themes::blend(background, accent, 0.12)
-        } else {
-            background
-        };
-        painter.rect_filled(right_box, 6.0, yes_fill);
-        painter.rect_stroke(right_box, 6.0, yes_stroke, egui::StrokeKind::Inside);
-
         let value = if (condition.eval)(ctx) { "true" } else { "false" };
-        painter.text(
-            condition_box.center(),
-            Align2::CENTER_CENTER,
+        nodes.push(FlowchartNode::new(
+            FlowchartNodeKind::Decision,
+            condition_box,
             format!("{}\n({value})", condition.label),
-            font_id.clone(),
-            ui.visuals().text_color(),
-        );
-        painter.text(
-            right_box.center(),
-            Align2::CENTER_CENTER,
-            action.label,
-            font_id.clone(),
-            ui.visuals().text_color(),
+        ));
+        nodes.push(
+            FlowchartNode::new(FlowchartNodeKind::Action, right_box, action.label)
+                .active(chosen == idx),
         );
 
         last_condition_box = condition_box;
         last_left_box = egui::Rect::from_center_size(
-            egui::pos2(center_x - branch_dx, condition_center_y),
+            egui::pos2(center_x - branch_dx, action_center_y),
             egui::vec2(action_box_w, action_box_h),
         );
     }
 
-    let else_path = [
-        egui::pos2(last_condition_box.left(), last_condition_box.center().y),
-        egui::pos2(last_left_box.right(), last_left_box.center().y),
-    ];
-    let else_stroke = if chosen >= steps.len() {
-        active_stroke
-    } else {
-        inactive_stroke
-    };
-    paint_polyline(&painter, &else_path, else_stroke, corner_radius);
-    let else_fill = if chosen >= steps.len() {
-        GORBIE::themes::blend(background, accent, 0.12)
-    } else {
-        background
-    };
-    painter.rect_filled(last_left_box, 6.0, else_fill);
-    painter.rect_stroke(last_left_box, 6.0, else_stroke, egui::StrokeKind::Inside);
-    painter.text(
-        last_left_box.center(),
-        Align2::CENTER_CENTER,
-        else_action.label,
-        font_id,
-        ui.visuals().text_color(),
+    edges.push(FlowchartEdge {
+        points: branch_elbow(
+            egui::pos2(last_condition_box.left(), last_condition_box.center().y),
+            egui::pos2(last_left_box.center().x, last_left_box.top()),
+        ),
+        active: chosen >= steps.len(),
+    });
+    nodes.push(
+        FlowchartNode::new(FlowchartNodeKind::Action, last_left_box, else_action.label)
+            .active(chosen >= steps.len()),
     );
+
+    let chart = Flowchart { rect, nodes, edges };
+    paint_flowchart(ui, &chart, &style);
 }
 
 pub fn if_else(nb: &mut NotebookCtx) {

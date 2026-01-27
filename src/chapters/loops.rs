@@ -35,6 +35,17 @@ impl Default for LoopStepperState {
     }
 }
 
+struct LoopVisualState {
+    total: i32,
+    count: i32,
+}
+
+impl Default for LoopVisualState {
+    fn default() -> Self {
+        Self { total: 5, count: 0 }
+    }
+}
+
 struct PracticeState {
     rng: SimpleRng,
     start: i32,
@@ -67,6 +78,39 @@ impl PracticeState {
         self.limit = limit;
         self.answer = answer;
         self.choices = build_choices(&mut self.rng, answer);
+        self.selection = None;
+    }
+}
+
+struct TerminationScenario {
+    start: i32,
+    limit: i32,
+    delta: i32,
+    condition: &'static str,
+    stops: bool,
+}
+
+struct TerminationPracticeState {
+    rng: SimpleRng,
+    scenario: TerminationScenario,
+    selection: Option<bool>,
+}
+
+impl Default for TerminationPracticeState {
+    fn default() -> Self {
+        let mut rng = SimpleRng::new(seed_from_time());
+        let scenario = pick_termination_scenario(&mut rng);
+        Self {
+            rng,
+            scenario,
+            selection: None,
+        }
+    }
+}
+
+impl TerminationPracticeState {
+    fn regenerate(&mut self) {
+        self.scenario = pick_termination_scenario(&mut self.rng);
         self.selection = None;
     }
 }
@@ -192,6 +236,61 @@ fn build_choices(rng: &mut SimpleRng, answer: i32) -> Vec<i32> {
     choices
 }
 
+fn pick_termination_scenario(rng: &mut SimpleRng) -> TerminationScenario {
+    const SCENARIOS: &[TerminationScenario] = &[
+        TerminationScenario {
+            start: 0,
+            limit: 5,
+            delta: 1,
+            condition: "<",
+            stops: true,
+        },
+        TerminationScenario {
+            start: 0,
+            limit: 5,
+            delta: -1,
+            condition: "<",
+            stops: false,
+        },
+        TerminationScenario {
+            start: 10,
+            limit: 5,
+            delta: -1,
+            condition: ">",
+            stops: true,
+        },
+        TerminationScenario {
+            start: 10,
+            limit: 5,
+            delta: 1,
+            condition: ">",
+            stops: false,
+        },
+        TerminationScenario {
+            start: 3,
+            limit: 3,
+            delta: 1,
+            condition: "<",
+            stops: true,
+        },
+        TerminationScenario {
+            start: 3,
+            limit: 3,
+            delta: -1,
+            condition: ">",
+            stops: true,
+        },
+    ];
+    let index = rng.gen_range_i32(0, (SCENARIOS.len() - 1) as i32) as usize;
+    TerminationScenario {
+        start: SCENARIOS[index].start,
+        limit: SCENARIOS[index].limit,
+        delta: SCENARIOS[index].delta,
+        condition: SCENARIOS[index].condition,
+        stops: SCENARIOS[index].stops,
+    }
+}
+
 fn code_frame(ui: &mut egui::Ui, job: LayoutJob) {
     let bg = ui.visuals().code_bg_color;
     let stroke = ui.visuals().widgets.inactive.bg_stroke;
@@ -222,6 +321,22 @@ fn highlight_line_job(ui: &egui::Ui, lines: &[&str], highlight: Option<usize>) -
         }
     }
     job
+}
+
+fn termination_code(ui: &egui::Ui, scenario: &TerminationScenario) -> LayoutJob {
+    let op = if scenario.delta >= 0 { "+" } else { "-" };
+    let delta = scenario.delta.abs();
+    let lines = [
+        format!("count <- {}", scenario.start),
+        format!(
+            "while count {} {} {{",
+            scenario.condition, scenario.limit
+        ),
+        format!("    count <- count {} {}", op, delta),
+        "}".to_string(),
+    ];
+    let line_refs: Vec<&str> = lines.iter().map(String::as_str).collect();
+    highlight_line_job(ui, &line_refs, None)
 }
 
 pub fn loops(nb: &mut NotebookCtx) {
@@ -263,6 +378,50 @@ pub fn loops(nb: &mut NotebookCtx) {
              ```"
         );
     });
+
+    nb.state(
+        &chapter_key("loop_visual_state"),
+        LoopVisualState::default(),
+        |ui, state| {
+            with_padding(ui, DEFAULT_CARD_PADDING, |ui| {
+                ui.label(RichText::new("Counting visual").heading());
+                ui.add_space(4.0);
+                ui.label("Each step runs the loop body once and fills one segment.");
+                ui.add_space(6.0);
+
+                let mut changed = false;
+                ui.horizontal(|ui| {
+                    ui.label("Total steps:");
+                    changed |= ui
+                        .add(widgets::Slider::new(&mut state.total, 1..=12))
+                        .changed();
+                    if ui.add(widgets::Button::new("Reset")).clicked() {
+                        state.count = 0;
+                    }
+                    if ui
+                        .add_enabled(state.count < state.total, widgets::Button::new("Step"))
+                        .clicked()
+                    {
+                        state.count = state.count.saturating_add(1).min(state.total);
+                    }
+                });
+                if changed && state.count > state.total {
+                    state.count = state.total;
+                }
+
+                let progress = if state.total > 0 {
+                    state.count as f32 / state.total as f32
+                } else {
+                    0.0
+                };
+                ui.add(
+                    widgets::ProgressBar::new(progress)
+                        .segments(state.total.max(1) as usize)
+                        .text(format!("{}/{}", state.count, state.total)),
+                );
+            });
+        },
+    );
 
     nb.view(|ui| {
         note!(
@@ -346,6 +505,37 @@ pub fn loops(nb: &mut NotebookCtx) {
                 ui.add_space(6.0);
                 ui.label(&step.note);
                 ui.label(format!("count = {}", step.count));
+            });
+        },
+    );
+
+    nb.state(
+        &chapter_key("loop_termination_state"),
+        TerminationPracticeState::default(),
+        |ui, state| {
+            with_padding(ui, DEFAULT_CARD_PADDING, |ui| {
+                ui.label(RichText::new("Will it stop?").heading());
+                ui.add_space(6.0);
+                ui.label("Decide whether the loop eventually stops.");
+                ui.add_space(6.0);
+                if ui.add(widgets::Button::new("New exercise")).clicked() {
+                    state.regenerate();
+                }
+                ui.add_space(6.0);
+                let job = termination_code(ui, &state.scenario);
+                code_frame(ui, job);
+                ui.add_space(6.0);
+
+                let mut toggle = widgets::ChoiceToggle::new(&mut state.selection).small();
+                toggle = toggle.choice(Some(true), "Stops");
+                toggle = toggle.choice(Some(false), "Runs forever");
+                ui.add(toggle);
+                ui.add_space(4.0);
+                match state.selection {
+                    Some(value) if value == state.scenario.stops => ui.label("Correct!"),
+                    Some(_) => ui.label("Not quite. Watch how count changes."),
+                    None => ui.label("Pick an answer."),
+                }
             });
         },
     );

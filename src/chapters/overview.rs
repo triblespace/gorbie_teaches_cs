@@ -1,8 +1,9 @@
 use egui::RichText;
 
 use GORBIE::prelude::*;
+use GORBIE::cards::DEFAULT_CARD_PADDING;
 
-use super::{current_chapter, set_chapter, Chapter};
+use super::{Chapter, current_chapter, set_chapter};
 
 fn chapter_entry(ui: &mut egui::Ui, chapter: Chapter, label: &str) {
     let is_current = current_chapter() == chapter;
@@ -44,31 +45,47 @@ pub fn overview(nb: &mut NotebookCtx) {
     });
 
     nb.view(|ui| {
-        ui.label(RichText::new("Track A - Programming foundations (10-12 notebooks)").heading());
-        ui.add_space(4.0);
-        chapter_entry(ui, Chapter::Expressions, "1. Hello, expressions (values and math)");
-        ui.add_space(2.0);
-        chapter_entry(ui, Chapter::Booleans, "2. To Bool or Not to Bool (yes/no logic)");
-        ui.add_space(2.0);
-        chapter_entry(ui, Chapter::State, "3. Hello, state (variables and change)");
-        ui.add_space(2.0);
-        chapter_entry(ui, Chapter::IfElse, "4. Forks in the Road (if/else decisions)");
-        ui.add_space(2.0);
-        chapter_entry(ui, Chapter::Loops, "5. Loops and counting");
-        ui.add_space(2.0);
-        ui.label("6. Functions as reusable steps");
-        ui.add_space(2.0);
-        ui.label("7. Lists and indexing");
-        ui.add_space(2.0);
-        ui.label("8. Maps and lookup tables");
-        ui.add_space(2.0);
-        ui.label("9. Debugging as a method");
-        ui.add_space(2.0);
-        ui.label("10. Sorting and searching basics");
-        ui.add_space(2.0);
-        ui.label("11. Complexity intuition (fast vs slow)");
-        ui.add_space(2.0);
-        ui.label("12. Mini project: a tiny text game");
+        with_padding(ui, DEFAULT_CARD_PADDING, |ui| {
+            ui.label(
+                RichText::new("Track A - Programming foundations (10-12 notebooks)").heading(),
+            );
+            ui.add_space(4.0);
+            chapter_entry(
+                ui,
+                Chapter::Expressions,
+                "1. Hello, expressions (values and math)",
+            );
+            ui.add_space(2.0);
+            chapter_entry(
+                ui,
+                Chapter::Booleans,
+                "2. To Bool or Not to Bool (yes/no logic)",
+            );
+            ui.add_space(2.0);
+            chapter_entry(ui, Chapter::State, "3. Hello, state (variables and change)");
+            ui.add_space(2.0);
+            chapter_entry(
+                ui,
+                Chapter::IfElse,
+                "4. Forks in the Road (if/else decisions)",
+            );
+            ui.add_space(2.0);
+            chapter_entry(ui, Chapter::Loops, "5. Loops and counting");
+            ui.add_space(2.0);
+            chapter_entry(ui, Chapter::Functions, "6. Functions as reusable steps");
+            ui.add_space(2.0);
+            ui.label("7. Lists and indexing");
+            ui.add_space(2.0);
+            ui.label("8. Maps and lookup tables");
+            ui.add_space(2.0);
+            ui.label("9. Debugging as a method");
+            ui.add_space(2.0);
+            ui.label("10. Sorting and searching basics");
+            ui.add_space(2.0);
+            ui.label("11. Complexity intuition (fast vs slow)");
+            ui.add_space(2.0);
+            ui.label("12. Mini project: a tiny text game");
+        });
     });
 
     nb.view(|ui| {

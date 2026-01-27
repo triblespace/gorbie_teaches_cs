@@ -7,6 +7,7 @@ use GORBIE::prelude::*;
 
 mod booleans;
 mod expressions;
+mod functions;
 mod if_else;
 mod loops;
 mod overview;
@@ -20,12 +21,20 @@ pub enum Chapter {
     State,
     IfElse,
     Loops,
+    Functions,
 }
 
 static CURRENT_CHAPTER: OnceLock<RwLock<Chapter>> = OnceLock::new();
 
 fn chapter_lock() -> &'static RwLock<Chapter> {
-    CURRENT_CHAPTER.get_or_init(|| RwLock::new(Chapter::Overview))
+    CURRENT_CHAPTER.get_or_init(|| {
+        let default = if std::env::args().any(|arg| arg == "--headless") {
+            Chapter::IfElse
+        } else {
+            Chapter::Overview
+        };
+        RwLock::new(default)
+    })
 }
 
 pub fn current_chapter() -> Chapter {
@@ -52,6 +61,7 @@ pub fn chapter_selector(nb: &mut NotebookCtx) {
             toggle = toggle.choice(Chapter::State, "3");
             toggle = toggle.choice(Chapter::IfElse, "4");
             toggle = toggle.choice(Chapter::Loops, "5");
+            toggle = toggle.choice(Chapter::Functions, "6");
             ui.add(toggle);
 
             if selection != current_chapter() {
@@ -83,4 +93,8 @@ pub fn if_else(nb: &mut NotebookCtx) {
 
 pub fn loops(nb: &mut NotebookCtx) {
     loops::loops(nb);
+}
+
+pub fn functions(nb: &mut NotebookCtx) {
+    functions::functions(nb);
 }
